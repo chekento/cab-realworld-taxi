@@ -1,6 +1,7 @@
 import type { MissionSeed, RouteSnapshot, TrafficSnapshot, WorldContext } from './core/contracts';
 import { createRealWorldMission } from './missions/generate';
 import { getPlayerPosition } from './services/location';
+import { LiveDriveController } from './ui/liveDrive';
 import { loadNearbyPois } from './world/poi/overpass';
 import { loadDrivingRoute } from './world/routing/osrm';
 import { loadRouteTraffic, TrafficProxyNotConfiguredError } from './world/traffic/proxy';
@@ -81,10 +82,12 @@ function renderTraffic(root: HTMLElement, snapshot: TrafficSnapshot): void {
 }
 
 export function mountApp(root: HTMLElement): void {
+  let liveDrive: LiveDriveController | undefined;
+
   root.innerHTML = `
     <main class="shell">
       <section class="hero">
-        <span class="eyebrow">CAB v2 FOUNDATION</span>
+        <span class="eyebrow">CAB v2 LIVE MAP ALPHA</span>
         <h1>CAB <small>— The Real World Taxi</small></h1>
         <p class="tagline">Real World. Real Roads. Real Places. Real Weather. Real Traffic. Procedural People.</p>
       </section>
@@ -99,6 +102,23 @@ export function mountApp(root: HTMLElement): void {
         </div>
         <p id="hq-copy" class="muted">CAB uses foreground location only after you choose to initialize your real-world HQ. Nearby real POIs are then queried from OpenStreetMap data.</p>
         <button id="locate" class="primary" type="button">Use my real location</button>
+      </section>
+
+      <section id="drive-map-panel" class="panel map-panel" hidden>
+        <div class="panel-head map-head">
+          <div>
+            <span class="label">LIVE DRIVE MAP</span>
+            <h2>Real-world driving view</h2>
+          </div>
+          <span class="badge live">MAP LIVE</span>
+        </div>
+        <div id="cab-map" class="cab-map" role="application" aria-label="CAB live driving map"></div>
+        <div class="map-controls">
+          <button id="map-follow" class="secondary" type="button">Follow me</button>
+          <button id="map-route" class="secondary" type="button">Show route</button>
+          <button id="map-live-drive" class="primary map-live-button" type="button">Start live drive</button>
+        </div>
+        <p id="map-tracking-status" class="muted small map-status">Map initialized from your real GPS position. Live movement starts only when you tap Start live drive.</p>
       </section>
 
       <section class="status-grid" aria-label="Real-world data status">
@@ -140,7 +160,7 @@ export function mountApp(root: HTMLElement): void {
       </section>
 
       <footer class="attribution">
-        Place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> · Routing development adapter: <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a> · Weather evaluation adapter: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Live traffic: configured licensed provider via CAB proxy
+        Place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> · Development map tiles: configurable OSM-compatible HTTPS provider · Routing development adapter: <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a> · Weather evaluation adapter: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Live traffic: configured licensed provider via CAB proxy
       </footer>
     </main>
   `;
@@ -185,6 +205,13 @@ export function mountApp(root: HTMLElement): void {
       hqCopy.textContent = `Accuracy ±${Math.round(position.accuracyMeters)} m. This coordinate is the current CAB HQ for the real-world session.`;
       gpsBadge.textContent = 'GPS LIVE';
       gpsBadge.classList.add('live');
+
+      if (!liveDrive) {
+        liveDrive = new LiveDriveController(root, position);
+      } else {
+        liveDrive.setPlayer(position);
+        liveDrive.invalidate();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown location error.';
       gpsBadge.textContent = 'GPS ERROR';
@@ -211,7 +238,7 @@ export function mountApp(root: HTMLElement): void {
 
     poiStatus.textContent = 'Loading real POIs…';
     missionStatus.textContent = 'Waiting for OSM';
-    technicalStatus.textContent = 'GPS live. Loading real places and live weather from independent providers…';
+    technicalStatus.textContent = 'GPS and live map are ready. Loading real places and live weather from independent providers…';
 
     try {
       const pois = await loadNearbyPois(context.position);
@@ -226,6 +253,7 @@ export function mountApp(root: HTMLElement): void {
       }
 
       renderMission(root, mission);
+      liveDrive?.setMission(mission);
       missionStatus.textContent = 'Locations ready';
       routeStatus.textContent = 'Calculating real roads…';
       technicalStatus.textContent = `Mission ${mission.id.slice(0, 8)} has real endpoints. Calculating the actual driving route now…`;
@@ -238,6 +266,7 @@ export function mountApp(root: HTMLElement): void {
 
         const primaryRoute = route.routes[0];
         if (!primaryRoute) throw new Error('Routing provider returned no primary route.');
+        liveDrive?.setRoute(primaryRoute);
 
         trafficStatus.textContent = 'Checking live…';
         try {
@@ -248,16 +277,16 @@ export function mountApp(root: HTMLElement): void {
           trafficStatus.textContent = traffic.routeClosed
             ? `Route closure · ${traffic.incidents.length} incident${traffic.incidents.length === 1 ? '' : 's'}`
             : `${delayText} · ${traffic.incidents.length} incident${traffic.incidents.length === 1 ? '' : 's'}`;
-          technicalStatus.textContent = `Real route plus live traffic loaded from ${traffic.provider}. No traffic delay is synthesized by CAB.`;
+          technicalStatus.textContent = `Real map, route and live traffic loaded from ${traffic.provider}. Tap Start live drive to follow real GPS movement.`;
         } catch (error) {
           context.trafficStatus = 'degraded';
           if (error instanceof TrafficProxyNotConfiguredError) {
             trafficStatus.textContent = 'Proxy not configured';
-            technicalStatus.textContent = 'Real route is ready. Live traffic remains disabled until an HTTPS CAB traffic proxy is configured; provider credentials never belong in the APK.';
+            technicalStatus.textContent = 'Real map and route are ready. Tap Start live drive to move the CAB marker with real GPS. Live traffic remains disabled until the HTTPS CAB proxy is configured.';
           } else {
             const message = error instanceof Error ? error.message : 'Live traffic unavailable.';
             trafficStatus.textContent = 'Traffic unavailable';
-            technicalStatus.textContent = `Real route is ready, but live traffic is degraded: ${message}`;
+            technicalStatus.textContent = `Real map and route are ready, but live traffic is degraded: ${message}`;
           }
         }
       } catch (error) {
