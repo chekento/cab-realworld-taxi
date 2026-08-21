@@ -1,10 +1,24 @@
-import type { MissionSeed, WorldContext } from './core/contracts';
+import type { MissionSeed, RouteSnapshot, WorldContext } from './core/contracts';
 import { createRealWorldMission } from './missions/generate';
 import { getPlayerPosition } from './services/location';
 import { loadNearbyPois } from './world/poi/overpass';
+import { loadDrivingRoute } from './world/routing/osrm';
 
 function formatCoordinate(value: number): string {
   return value.toFixed(5);
+}
+
+function formatDistance(meters: number): string {
+  if (meters < 1_000) return `${Math.round(meters)} m`;
+  return `${(meters / 1_000).toFixed(1)} km`;
+}
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return `${hours} h ${remainder} min`;
 }
 
 function clearMission(root: HTMLElement): void {
@@ -17,6 +31,7 @@ function renderMission(root: HTMLElement, mission: MissionSeed): void {
   const pickup = root.querySelector<HTMLElement>('#mission-pickup');
   const destination = root.querySelector<HTMLElement>('#mission-destination');
   const passenger = root.querySelector<HTMLElement>('#mission-passenger');
+  const routeMetrics = root.querySelector<HTMLElement>('#route-metrics');
 
   if (!card || !pickup || !destination || !passenger) return;
 
@@ -28,7 +43,23 @@ function renderMission(root: HTMLElement, mission: MissionSeed): void {
   pickup.textContent = mission.pickup.name;
   destination.textContent = mission.destination.name;
   passenger.textContent = `${mission.passenger.name}, ${mission.passenger.age} · ${mission.passenger.occupation} · ${mission.passenger.temperament}`;
+  if (routeMetrics) routeMetrics.hidden = true;
   card.hidden = false;
+}
+
+function renderRoute(root: HTMLElement, snapshot: RouteSnapshot): void {
+  const metrics = root.querySelector<HTMLElement>('#route-metrics');
+  const distance = root.querySelector<HTMLElement>('#route-distance');
+  const duration = root.querySelector<HTMLElement>('#route-duration');
+  const alternatives = root.querySelector<HTMLElement>('#route-alternatives');
+  const primary = snapshot.routes[0];
+
+  if (!metrics || !distance || !duration || !alternatives || !primary) return;
+
+  distance.textContent = formatDistance(primary.distanceMeters);
+  duration.textContent = formatDuration(primary.durationSeconds);
+  alternatives.textContent = String(Math.max(0, snapshot.routes.length - 1));
+  metrics.hidden = false;
 }
 
 export function mountApp(root: HTMLElement): void {
@@ -54,6 +85,7 @@ export function mountApp(root: HTMLElement): void {
 
       <section class="status-grid" aria-label="Real-world data status">
         <article><span>MAP / POIs</span><strong id="poi-status">Pending</strong></article>
+        <article><span>ROAD ROUTING</span><strong id="route-status">Pending</strong></article>
         <article><span>LIVE WEATHER</span><strong id="weather-status">Pending</strong></article>
         <article><span>LIVE TRAFFIC</span><strong id="traffic-status">Pending</strong></article>
         <article><span>MISSION ENGINE</span><strong id="mission-status">Waiting for GPS</strong></article>
@@ -73,7 +105,12 @@ export function mountApp(root: HTMLElement): void {
           </div>
         </div>
         <p id="mission-passenger" class="passenger-line"></p>
-        <p class="muted small">Pickup and destination come from real OpenStreetMap objects. Driving route, fare, weather and traffic are deliberately not estimated yet.</p>
+        <div id="route-metrics" class="route-metrics" hidden>
+          <div><span>ROAD DISTANCE</span><strong id="route-distance">—</strong></div>
+          <div><span>BASE ETA</span><strong id="route-duration">—</strong></div>
+          <div><span>ALTERNATIVES</span><strong id="route-alternatives">0</strong></div>
+        </div>
+        <p class="muted small">Distance and ETA are calculated on the real road network. ETA is still a baseline without live traffic; fare calculation comes later with tariff rules.</p>
       </section>
 
       <section class="panel compact">
@@ -82,7 +119,7 @@ export function mountApp(root: HTMLElement): void {
       </section>
 
       <footer class="attribution">
-        Real-world place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a>
+        Place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> · Routing development adapter: <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a>
       </footer>
     </main>
   `;
@@ -92,10 +129,11 @@ export function mountApp(root: HTMLElement): void {
   const hqCopy = root.querySelector<HTMLElement>('#hq-copy');
   const gpsBadge = root.querySelector<HTMLElement>('#gps-badge');
   const poiStatus = root.querySelector<HTMLElement>('#poi-status');
+  const routeStatus = root.querySelector<HTMLElement>('#route-status');
   const missionStatus = root.querySelector<HTMLElement>('#mission-status');
   const technicalStatus = root.querySelector<HTMLElement>('#technical-status');
 
-  if (!locateButton || !hqTitle || !hqCopy || !gpsBadge || !poiStatus || !missionStatus || !technicalStatus) {
+  if (!locateButton || !hqTitle || !hqCopy || !gpsBadge || !poiStatus || !routeStatus || !missionStatus || !technicalStatus) {
     throw new Error('CAB UI failed to initialize.');
   }
 
@@ -104,6 +142,7 @@ export function mountApp(root: HTMLElement): void {
     locateButton.textContent = 'Locating…';
     technicalStatus.textContent = 'Requesting foreground GPS permission and current position…';
     clearMission(root);
+    routeStatus.textContent = 'Pending';
 
     let context: WorldContext;
 
@@ -142,18 +181,34 @@ export function mountApp(root: HTMLElement): void {
       poiStatus.textContent = pois.length >= 2 ? `${pois.length} real POIs` : `${pois.length} POIs · insufficient`;
 
       const mission = createRealWorldMission(context, pois);
-      if (mission.status === 'ready') {
-        renderMission(root, mission);
-        missionStatus.textContent = 'Real mission ready';
-        technicalStatus.textContent = `Mission ${mission.id.slice(0, 8)} uses two real OSM locations and one procedural passenger. Next step: real road routing.`;
-      } else {
+      if (mission.status !== 'ready' || !mission.pickup || !mission.destination) {
         missionStatus.textContent = 'Need more real POIs';
         technicalStatus.textContent = 'GPS works, but the current OSM result does not contain enough distinct real locations for a mission.';
+        return;
+      }
+
+      renderMission(root, mission);
+      missionStatus.textContent = 'Locations ready';
+      routeStatus.textContent = 'Calculating real roads…';
+      technicalStatus.textContent = `Mission ${mission.id.slice(0, 8)} has real endpoints. Calculating the actual driving route now…`;
+
+      try {
+        const route = await loadDrivingRoute(mission.pickup.point, mission.destination.point);
+        renderRoute(root, route);
+        routeStatus.textContent = 'Road route live';
+        missionStatus.textContent = 'Ready to drive';
+        technicalStatus.textContent = `Real road route loaded with ${route.routes.length} option${route.routes.length === 1 ? '' : 's'}. Next: live weather and traffic modifiers.`;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown routing error.';
+        routeStatus.textContent = 'Routing unavailable';
+        missionStatus.textContent = 'Locations ready';
+        technicalStatus.textContent = `Real POIs are valid, but the road route could not be loaded: ${message}`;
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown OSM POI error.';
       context.poiStatus = 'degraded';
       poiStatus.textContent = 'OSM unavailable';
+      routeStatus.textContent = 'Blocked';
       missionStatus.textContent = 'Waiting for real POIs';
       technicalStatus.textContent = `GPS is live, but real POIs could not be loaded: ${message}`;
     } finally {
