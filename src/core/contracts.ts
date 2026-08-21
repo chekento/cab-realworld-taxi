@@ -1,8 +1,18 @@
-export interface GeoPoint {
+export interface Coordinate {
   latitude: number;
   longitude: number;
+}
+
+export interface GeoPoint extends Coordinate {
   accuracyMeters: number;
   capturedAt: number;
+}
+
+export interface RealPoi {
+  osmId: string;
+  name: string;
+  category: string;
+  point: Coordinate;
 }
 
 export interface WorldContext {
@@ -31,8 +41,8 @@ export interface MissionSeed {
   id: string;
   createdAt: number;
   origin: GeoPoint;
-  destinationOsmId?: string;
-  destinationName?: string;
+  pickup?: RealPoi;
+  destination?: RealPoi;
   passenger?: PassengerDNA;
   status: 'awaiting-live-pois' | 'ready' | 'active' | 'complete';
 }
