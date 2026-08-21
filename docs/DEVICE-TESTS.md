@@ -28,4 +28,24 @@ On the corrected build pipeline:
 - Gradle `assembleDebug`: success;
 - APK artifact upload: success.
 
-Next physical-device test: install the GPS-fix APK and verify Android permission prompt → Taxi HQ coordinates → OSM POIs → routing → weather.
+## 2026-08-21 — GPS-fix physical Android retest
+
+### Result
+The corrected APK successfully completed the real-world data bootstrap on a physical Android device.
+
+Observed on device:
+- foreground GPS: **live**;
+- GPS accuracy: approximately **±21 m** during the captured test;
+- OpenStreetMap POI query: **200 real POIs** returned;
+- road routing: **live**;
+- current weather: **live**;
+- procedural mission generation: **ready to drive**;
+- example route: real OSM pickup to real OSM drop-off with a **3.2 km / 5 min** baseline route;
+- live traffic: correctly reported **proxy not configured**, with no invented delay data.
+
+### Conclusion
+The real-world acquisition chain now works on physical Android hardware:
+
+`Android GPS → real HQ → OSM POIs → procedural passenger/mission → OSRM road route → current weather`
+
+The remaining visible gap in this test build is the absence of an interactive driving map. The next alpha adds a live map with player position, pickup/drop-off markers, route geometry, follow mode and opt-in continuous foreground GPS tracking.
