@@ -1,4 +1,4 @@
-import L, { type Circle, type CircleMarker, type Map, type Polyline } from 'leaflet';
+import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Coordinate, MissionSeed, RouteOption } from '../../core/contracts';
 
@@ -23,12 +23,12 @@ function tileAttribution(): string {
 }
 
 export class CabLiveMap {
-  private readonly map: Map;
-  private readonly playerMarker: CircleMarker;
-  private readonly accuracyCircle: Circle;
-  private pickupMarker?: CircleMarker;
-  private destinationMarker?: CircleMarker;
-  private routeLine?: Polyline;
+  private readonly map: L.Map;
+  private readonly playerMarker: L.CircleMarker;
+  private readonly accuracyCircle: L.Circle;
+  private pickupMarker?: L.CircleMarker;
+  private destinationMarker?: L.CircleMarker;
+  private routeLine?: L.Polyline;
   private followPlayer = true;
 
   constructor(container: HTMLElement, player: Coordinate, accuracyMeters = 25) {
@@ -126,7 +126,7 @@ export class CabLiveMap {
     const points: L.LatLng[] = [this.playerMarker.getLatLng()];
     if (this.pickupMarker) points.push(this.pickupMarker.getLatLng());
     if (this.destinationMarker) points.push(this.destinationMarker.getLatLng());
-    if (this.routeLine) points.push(...this.routeLine.getLatLngs() as L.LatLng[]);
+    if (this.routeLine) points.push(...(this.routeLine.getLatLngs() as L.LatLng[]));
 
     if (points.length > 1) {
       this.followPlayer = false;
