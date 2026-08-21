@@ -128,6 +128,35 @@ h2 { margin: .25rem 0 0; font-size: 1.1rem; }
 
 .route-arrow { color: #f8c928; font-size: 1.35rem; font-weight: 900; }
 .passenger-line { margin: 16px 0 6px; font-weight: 750; }
+
+.route-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 8px;
+}
+
+.route-metrics > div {
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px;
+  background: rgba(0,0,0,.14);
+}
+
+.route-metrics span {
+  display: block;
+  color: #7f8a98;
+  font-size: .61rem;
+  letter-spacing: .08em;
+  font-weight: 800;
+}
+
+.route-metrics strong {
+  display: block;
+  margin-top: 5px;
+  font-size: .95rem;
+}
+
 .attribution { margin: 18px 4px 0; color: #6f7986; font-size: .72rem; line-height: 1.5; }
 
 @media (max-width: 480px) {
@@ -136,4 +165,5 @@ h2 { margin: .25rem 0 0; font-size: 1.1rem; }
   .panel-head { align-items: center; }
   .mission-route { grid-template-columns: 1fr; }
   .route-arrow { transform: rotate(90deg); justify-self: center; }
+  .route-metrics { grid-template-columns: 1fr 1fr; }
 }
