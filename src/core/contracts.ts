@@ -43,6 +43,31 @@ export interface WeatherSnapshot {
   isDay: boolean;
 }
 
+export type TrafficSeverity = 'free' | 'light' | 'moderate' | 'heavy' | 'blocked';
+
+export interface TrafficIncident {
+  id: string;
+  type: string;
+  title?: string;
+  severity: TrafficSeverity;
+  startTime?: string;
+  endTime?: string;
+  point?: Coordinate;
+}
+
+export interface TrafficSnapshot {
+  provider: string;
+  fetchedAt: number;
+  baselineDurationSeconds: number;
+  trafficDurationSeconds: number;
+  delaySeconds: number;
+  averageSpeedKmh?: number;
+  freeFlowSpeedKmh?: number;
+  congestionRatio?: number;
+  routeClosed: boolean;
+  incidents: TrafficIncident[];
+}
+
 export interface WorldContext {
   position: GeoPoint;
   localTimeIso: string;
