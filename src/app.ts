@@ -7,6 +7,11 @@ function formatCoordinate(value: number): string {
   return value.toFixed(5);
 }
 
+function clearMission(root: HTMLElement): void {
+  const card = root.querySelector<HTMLElement>('#mission-card');
+  if (card) card.hidden = true;
+}
+
 function renderMission(root: HTMLElement, mission: MissionSeed): void {
   const card = root.querySelector<HTMLElement>('#mission-card');
   const pickup = root.querySelector<HTMLElement>('#mission-pickup');
@@ -98,12 +103,7 @@ export function mountApp(root: HTMLElement): void {
     locateButton.disabled = true;
     locateButton.textContent = 'Locating…';
     technicalStatus.textContent = 'Requesting foreground GPS permission and current position…';
-    renderMission(root, {
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
-      origin: { latitude: 0, longitude: 0, accuracyMeters: 0, capturedAt: Date.now() },
-      status: 'awaiting-live-pois'
-    });
+    clearMission(root);
 
     let context: WorldContext;
 
