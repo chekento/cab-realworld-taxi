@@ -1,225 +1,133 @@
-# CAB — The Real World Taxi
-## Development Roadmap
+# CAB v2 — Development Roadmap
 
-This roadmap prioritizes a playable real-world Android vertical slice before breadth.
+## Current verified foundation
 
-## Phase 0 — Preserve the prototype
+The `feat/cab-v2-foundation` branch currently proves the following real-world chain:
 
-Status: in progress on `feat/cab-v2-foundation`.
+```text
+foreground GPS
+-> real Taxi HQ
+-> real named OpenStreetMap POIs
+-> procedural passenger
+-> real pickup/drop-off mission
+-> real road routing + alternatives
+-> live current weather
+-> optional live traffic through a secure HTTPS proxy
+-> jurisdiction-aware taximeter engine
+-> passenger-aware detour risk engine
+```
 
-Goals:
-- keep the original WebSim prototype as reference,
-- record source checksums,
-- avoid destructive edits to the baseline,
-- document missing binary/source pieces when connector limitations prevent direct upload.
+The web core is continuously type-checked and built with GitHub Actions.
 
-Exit criteria:
-- baseline is traceable,
-- v2 development is separated from prototype code.
+## Phase 1 — Foundation and baseline
 
-## Phase 1 — Foundation specification
+- preserve WebSim v1 reference
+- document product/gameplay direction
+- establish TypeScript/Vite/Capacitor architecture
+- establish provider boundaries
+- keep secrets out of client assets
 
-Goals:
-- product/gameplay specification,
-- real-world data rules,
-- architecture boundaries,
-- Android-first roadmap.
+Status: substantially complete on the foundation branch.
 
-Exit criteria:
-- no ambiguity about GPS HQ, real locations, traffic/weather truthfulness, procedural passengers, progression or global city unlocks.
+## Phase 2 — Real-world vertical slice
 
-## Phase 2 — Project scaffold
+- foreground GPS Taxi HQ
+- OSM POI discovery
+- real mission endpoints
+- procedural passenger generation
+- real road routing
+- route alternatives
+- live current weather
+- live traffic proxy contract
+- degraded-network behaviour
 
-Goals:
-- create modular TypeScript/Vite application,
-- add Capacitor Android shell,
-- establish lint/typecheck/test scripts,
-- create environment/provider configuration pattern,
-- create basic screen routing and design tokens.
+Status: client-side slice implemented. Live traffic requires a configured CAB HTTPS proxy with a licensed upstream provider.
 
-Exit criteria:
-- web build works,
-- Android debug build opens,
-- no provider secrets committed.
+## Phase 3 — Taxi gameplay core
 
-## Phase 3 — Real-World vertical slice
+- verified local tariff catalogue
+- taximeter driven by actual travelled distance/time
+- route-choice screen
+- intentional-detour mechanics
+- passenger suspicion/complaint/reward consequences
+- passenger-requested scenic routes
+- traffic/closure justification for legitimate diversions
+- ride state machine
+- pickup/wait/onboard/drop-off flow
+- satisfaction/tip/rating calculation
+- first mission result screen
 
-Goals:
-- foreground GPS flow,
-- real map centered on player,
-- real nearby POI loading,
-- route calculation,
-- real weather provider adapter,
-- traffic provider adapter or explicit unavailable state,
-- `WorldContextService`.
+## Phase 4 — Career progression
 
-Exit criteria:
-- app can start from real GPS and display validated nearby real places,
-- data freshness/state is visible and honest.
+- XP and levels
+- 60+ career ranks/licenses
+- 300–500 data-driven achievements
+- city mastery
+- home territory -> regional -> national -> metropolitan -> global progression
+- optional metropolis contracts at higher levels
+- World License / free location choice at maximum level
+- daily/weekly challenges
+- recurring passengers and mini story arcs
 
-## Phase 4 — Procedural passenger engine
+## Phase 5 — Economy and fleet
 
-Goals:
-- deterministic Passenger DNA generator,
-- personality/needs/preferences,
-- mood model,
-- recurring passenger IDs,
-- dialogue template system,
-- humour/event traits.
+- verified tariff profiles by jurisdiction
+- vehicle ownership
+- fuel/energy
+- wear/maintenance
+- cleaning/interior condition
+- upgrades
+- garage
+- insurance/service costs as game systems
+- multiple taxi classes
 
-Exit criteria:
-- thousands of generated passengers pass invariant tests,
-- traits visibly affect ride logic.
+## Phase 6 — World depth
 
-## Phase 5 — Mission engine
+- real-time weather gameplay modifiers
+- live traffic flow/incidents/closures
+- time/day/week effects
+- real POI category mission logic
+- major event hooks where reliable real data is available
+- airport/station/hospital/nightlife/business mission families
+- local-knowledge/no-navigation challenges
 
-Goals:
-- mission state machine,
-- real pickup/drop-off selection,
-- POI-context mission templates,
-- fare estimates,
-- urgency/difficulty,
-- dynamic events,
-- cancellation/failure rules.
+## Phase 7 — Android internal alpha
 
-Exit criteria:
-- real GPS area can generate and complete a full mission between real locations.
+- generate native Capacitor Android project
+- required foreground location declarations
+- privacy/permission UX
+- Android build CI
+- unsigned/debug internal APK artifact
+- device test on real Android hardware
+- lifecycle/resume tests
+- GPS/network degraded-mode tests
 
-## Phase 6 — Driving, route freedom and taxi economy
+## Phase 8 — Production hardening
 
-Goals:
-- expected vs actual route,
-- deliberate detours,
-- passenger route tolerance,
-- fare/time/distance model,
-- waiting time,
-- comfort/smoothness scoring,
-- fuel/energy/wear foundation,
-- anti-exploit rules.
+- replace public demo routing infrastructure
+- deploy licensed live-traffic proxy
+- deploy commercial/licensed weather path as required
+- verify OSM tile/POI production infrastructure and attribution
+- API abuse/rate-limit protection
+- crash handling/logging policy
+- savegame schema/migrations
+- accessibility/localization
+- performance/battery/network optimization
 
-Exit criteria:
-- taking a detour can earn more but creates understandable passenger/economic consequences,
-- circling cannot dominate optimal play.
+## Phase 9 — Play Store release
 
-## Phase 7 — Mobile UX overhaul
+- package/app metadata
+- icon/splash/store assets
+- privacy policy
+- Data Safety declarations
+- permission review
+- third-party licenses/attributions
+- release signing
+- signed release APK for final device verification
+- Android App Bundle (AAB)
+- internal/closed testing
+- Play Console submission
 
-Goals:
-- new main menu,
-- career dashboard,
-- shift setup,
-- map-first driving HUD,
-- passenger card,
-- event/dialogue UI,
-- ride result screen,
-- settings/privacy/attribution.
+## Immediate next checkpoint
 
-Exit criteria:
-- no dependency on draggable desktop-like prototype panels,
-- portrait Android experience is usable one-handed where practical.
-
-## Phase 8 — Progression systems
-
-Goals:
-- persistent XP,
-- 60+ data-driven ranks/licenses,
-- 300–500 data-driven achievements,
-- City Mastery,
-- daily/weekly challenges,
-- Cab Journal,
-- statistics.
-
-Exit criteria:
-- progression creates short-, medium- and long-term goals,
-- achievement/rank logic is testable and not hard-coded into UI.
-
-## Phase 9 — World career
-
-Goals:
-- Home Territory,
-- Regional License,
-- National Contracts,
-- optional Metropolitan transfers,
-- Global Elite contracts,
-- maximum-level World License,
-- free worldwide location choice,
-- Random City challenge.
-
-Exit criteria:
-- global travel always resolves to real map/POI/weather/traffic context where supported,
-- player can remain local by choice.
-
-## Phase 10 — Vehicles and deeper management
-
-Goals:
-- multiple vehicle classes,
-- garage,
-- repairs/cleaning/upgrades,
-- EV/fuel differences,
-- mission suitability,
-- optional fleet-management foundation.
-
-Exit criteria:
-- vehicles change strategy rather than only cosmetic appearance.
-
-## Phase 11 — Alpha APK
-
-Goal: produce the first useful on-device APK before feature completeness.
-
-Required alpha slice:
-- Android install/launch,
-- permission onboarding,
-- real GPS start,
-- real map/POI mission,
-- procedural passenger,
-- route completion,
-- fare/result,
-- local save/restore,
-- basic modern mobile UI.
-
-The alpha is for device testing, not Play Store release.
-
-## Phase 12 — Beta hardening
-
-Goals:
-- crash/error handling,
-- offline/degraded provider modes,
-- performance and battery review,
-- map/network caching review,
-- save migrations/recovery,
-- accessibility pass,
-- balance pass,
-- localization-ready strings,
-- analytics/telemetry decision with privacy review,
-- dependency/license audit.
-
-## Phase 13 — Play Store readiness
-
-Checklist categories:
-- package/application identity,
-- target/current Android requirements,
-- signing and release build,
-- AAB generation,
-- permissions minimized,
-- privacy policy,
-- Data Safety declaration inputs,
-- location explanation/onboarding,
-- OSM/provider attribution,
-- commercial-use provider licenses,
-- API-key security,
-- content rating inputs,
-- store listing/screenshots/icon,
-- internal/closed testing,
-- pre-launch report review,
-- crash/ANR checks,
-- release notes/versioning.
-
-Exit criteria:
-- signed release AAB passes the project's release checklist and can be submitted to Google Play.
-
-## Working rule
-
-From this point forward:
-
-> **Small verified changes beat large opaque rewrites.**
-
-Each major phase should end with a runnable or inspectable checkpoint before the next one begins.
+Create a reproducible GitHub Actions Android build that generates the native Capacitor project from the verified web core and publishes a debug APK artifact. This keeps the first APK reproducible without prematurely committing a large generated Android tree.
