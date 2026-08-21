@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Cab Map</title>
+    <!-- Include Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+    <!-- Include our CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner">🚖</div>
+            <h2>Starting Engine...</h2>
+            <p>Acquiring GPS Signal</p>
+        </div>
+    </div>
+
+    <!-- Game UI Overlay -->
+    <div class="game-ui">
+        <div class="top-bar">
+            <div class="clock-display" id="game-clock">08:00 AM</div>
+            <div class="weather-display" id="game-weather">☀️ Clear</div>
+            <div class="shift-stats">
+                <span id="cash-display">💰 $0</span>
+                <span id="xp-display">⭐ 0 XP</span>
+            </div>
+        </div>
+
+        <div id="mood-indicator" class="mood-indicator" style="display:none;">
+            <div class="mood-label">Passenger Mood</div>
+            <div class="mood-bar-bg">
+                <div id="mood-fill" class="mood-fill"></div>
+            </div>
+            <button id="talk-button" class="talk-button">💬 Chat with Passenger</button>
+        </div>
+        
+        <div id="passenger-panel" class="passenger-panel">
+            <div class="passenger-info">
+                <div class="passenger-header">
+                    <h3 id="passenger-name">👤 Passenger</h3>
+                    <div id="surge-badge" class="surge-badge">SURGE 1.5x</div>
+                </div>
+                <div id="passenger-request" class="passenger-request"></div>
+                <div class="destination-info">
+                    <strong>To:</strong> <span id="passenger-destination"></span>
+                    <span id="destination-distance" class="dist-tag"></span>
+                </div>
+                <div class="passenger-actions">
+                    <button id="accept-button" class="pickup-button">Accept</button>
+                    <button id="reject-button" class="advice-button">Decline</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="hint-panel" class="hint-panel">
+            <strong>💡 Note:</strong>
+            <div id="hint-text"></div>
+        </div>
+
+        <div id="notification-area" class="notification-area">
+            <!-- Notifications will be added here by script.js -->
+        </div>
+
+        <div id="jobs-hud" class="jobs-hud">
+            <h3>📡 Nearby Radar</h3>
+            <div class="hud-section-title">Passengers</div>
+            <div id="jobs-list"></div>
+            <div class="hud-section-title">Service Stations</div>
+            <div id="stations-list"></div>
+        </div>
+
+        <div id="vehicle-metrics" class="vehicle-metrics">
+            <div class="speed-display">
+                <span id="current-speed">0</span> MPH
+            </div>
+            <div class="trip-info">
+                <div>Trip: <span id="trip-distance">0.0</span> mi</div>
+                <div>Left: <span id="trip-remaining">0.0</span> mi</div>
+                <div>Time: <span id="trip-time">0:00</span></div>
+                <div>Total: <span id="trip-total-est">0.0</span> mi</div>
+            </div>
+            <div class="road-type-display" id="road-type-info">Local Road</div>
+            <button id="abandon-trip-button" class="abandon-button" style="display:none;">🚫 Abandon Trip</button>
+        </div>
+
+        <!-- New Vehicle Status Panel -->
+        <div id="vehicle-status" class="vehicle-status">
+            <div id="nearest-station-indicator" class="nearest-indicator">
+                📍 Nearest: <span id="near-station-name">Searching...</span>
+            </div>
+            <div class="status-row">
+                <div class="fuel-gauge">
+                    <div class="gauge-icon">⛽</div>
+                    <div class="gauge-bar">
+                        <div id="fuel-level" class="fuel-fill"></div>
+                    </div>
+                    <span id="fuel-percent">100%</span>
+                </div>
+            </div>
+            <div class="status-row">
+                <div class="condition-gauge">
+                    <div class="gauge-icon">🔧</div>
+                    <div class="gauge-bar">
+                        <div id="condition-level" class="condition-fill"></div>
+                    </div>
+                    <span id="condition-percent">100%</span>
+                </div>
+            </div>
+            <div class="transmission-display">
+                <span id="current-transmission">Sport Mode</span>
+            </div>
+        </div>
+
+        <!-- Service Station Panel -->
+        <div id="service-panel" class="service-panel">
+            <div class="service-header">
+                <h3 id="service-title">🚗 Service Station</h3>
+                <button id="service-close" class="close-button">×</button>
+            </div>
+            <div id="service-content" class="service-content"></div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settings-panel" class="settings-panel">
+            <div class="settings-header">
+                <h3>⚙️ Vehicle Settings</h3>
+                <button id="settings-close" class="close-button">×</button>
+            </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label>Transmission Mode:</label>
+                    <div class="transmission-buttons">
+                        <button class="transmission-btn active" data-mode="sport">🏎️ Sport</button>
+                        <button class="transmission-btn" data-mode="eco">🌱 Eco</button>
+                        <button class="transmission-btn" data-mode="comfort">🛋️ Comfort</button>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <label>Speed Limiter:</label>
+                    <div class="speed-limiter">
+                        <input type="range" id="speed-limit" min="20" max="65" value="65" step="5">
+                        <span id="speed-limit-display">65 mph</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Button -->
+    <button id="settings-button" class="floating-button" title="Settings">⚙️</button>
+    <!-- Search Button -->
+    <button id="search-button" class="floating-button" style="bottom: 230px;" title="Search for Passengers">🔍</button>
+    <!-- New OSD Menu Button -->
+    <button id="osd-menu-button" class="floating-button" style="bottom: 300px;" title="Dashboard">📋</button>
+
+    <!-- Include Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20n630ngoOtxivrZgo+3cnKVlG4zPKGpKaYcfringVa%C3%A2%C2%80%C2%99"
+        crossorigin=""></script>
+    <!-- Include our script -->
+    <script type="module" src="script.js"></script>
+
+    <!-- New Unified OSD Menu -->
+    <div id="osd-menu" class="osd-menu" style="display:none;">
+        <div class="osd-menu-header">
+            <h3>Dashboard</h3>
+            <button id="osd-menu-close" class="close-button">×</button>
+        </div>
+        <div class="osd-menu-content">
+            <div class="osd-quick-stats">
+                💰 $<span id="osd-cash">0</span> • ⭐ <span id="osd-xp">0</span> XP • Jobs <span id="osd-jobs">0</span>
+            </div>
+            <div class="osd-actions">
+                <button id="osd-open-settings" class="osd-btn">Settings</button>
+                <button id="osd-clear-jobs" class="osd-btn danger" title="Clear all nearby job offers">Clear Offers</button>
+            </div>
+            <div class="osd-section-title">Active Job Offers</div>
+            <div id="osd-jobs-list" class="osd-list"></div>
+            <div class="osd-section-title">Service Stations</div>
+            <div id="service-list" class="osd-list"></div>
+        </div>
+    </div>
+</body>
+</html>
