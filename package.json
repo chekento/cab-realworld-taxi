@@ -1,6 +1,6 @@
 {
   "name": "cab-the-real-world-taxi",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "CAB — The Real World Taxi. Real-world taxi career game powered by live maps, traffic, weather and procedural passengers.",
@@ -14,11 +14,13 @@
   },
   "dependencies": {
     "@capacitor/core": "8.5.0",
-    "@capacitor/geolocation": "8.2.1"
+    "@capacitor/geolocation": "8.2.1",
+    "leaflet": "1.9.4"
   },
   "devDependencies": {
     "@capacitor/android": "8.5.0",
     "@capacitor/cli": "8.5.0",
+    "@types/leaflet": "1.9.20",
     "typescript": "7.0.2",
     "vite": "8.2.2"
   },
