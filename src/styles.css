@@ -19,6 +19,7 @@ body {
 }
 
 button { font: inherit; }
+a { color: #f8c928; }
 
 .shell {
   width: min(100%, 760px);
@@ -53,6 +54,7 @@ h2 { margin: .25rem 0 0; font-size: 1.1rem; }
 .panel.compact { padding: 16px 18px; }
 .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .muted, #technical-status { color: #aeb7c4; line-height: 1.5; }
+.small { font-size: .83rem; }
 
 .badge {
   flex: 0 0 auto;
@@ -89,8 +91,49 @@ h2 { margin: .25rem 0 0; font-size: 1.1rem; }
 .status-grid span { display: block; color: #7f8a98; font-size: .68rem; letter-spacing: .1em; font-weight: 800; }
 .status-grid strong { display: block; margin-top: .45rem; font-size: .95rem; }
 
+.mission-card {
+  border-color: rgba(248, 201, 40, .24);
+  background: linear-gradient(145deg, rgba(38, 34, 21, .92), rgba(18, 24, 33, .9));
+}
+
+.mission-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.mission-route > div {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.045);
+}
+
+.route-kicker {
+  display: block;
+  margin-bottom: 7px;
+  color: #7f8a98;
+  font-size: .64rem;
+  letter-spacing: .08em;
+  font-weight: 800;
+}
+
+.mission-route strong {
+  display: block;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.route-arrow { color: #f8c928; font-size: 1.35rem; font-weight: 900; }
+.passenger-line { margin: 16px 0 6px; font-weight: 750; }
+.attribution { margin: 18px 4px 0; color: #6f7986; font-size: .72rem; line-height: 1.5; }
+
 @media (max-width: 480px) {
   .shell { padding-left: 14px; padding-right: 14px; }
   .status-grid { grid-template-columns: 1fr; }
   .panel-head { align-items: center; }
+  .mission-route { grid-template-columns: 1fr; }
+  .route-arrow { transform: rotate(90deg); justify-self: center; }
 }
