@@ -15,6 +15,18 @@ export interface RealPoi {
   point: Coordinate;
 }
 
+export interface RouteOption {
+  distanceMeters: number;
+  durationSeconds: number;
+  geometry: Coordinate[];
+}
+
+export interface RouteSnapshot {
+  provider: string;
+  fetchedAt: number;
+  routes: RouteOption[];
+}
+
 export interface WorldContext {
   position: GeoPoint;
   localTimeIso: string;
