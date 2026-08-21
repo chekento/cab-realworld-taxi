@@ -1,8 +1,9 @@
-import type { MissionSeed, RouteSnapshot, WorldContext } from './core/contracts';
+import type { MissionSeed, RouteSnapshot, TrafficSnapshot, WorldContext } from './core/contracts';
 import { createRealWorldMission } from './missions/generate';
 import { getPlayerPosition } from './services/location';
 import { loadNearbyPois } from './world/poi/overpass';
 import { loadDrivingRoute } from './world/routing/osrm';
+import { loadRouteTraffic, TrafficProxyNotConfiguredError } from './world/traffic/proxy';
 import { loadCurrentWeather, weatherCodeLabel } from './world/weather/openMeteo';
 
 function formatCoordinate(value: number): string {
@@ -15,7 +16,7 @@ function formatDistance(meters: number): string {
 }
 
 function formatDuration(seconds: number): string {
-  const minutes = Math.max(1, Math.round(seconds / 60));
+  const minutes = Math.max(0, Math.round(seconds / 60));
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
@@ -53,6 +54,9 @@ function renderRoute(root: HTMLElement, snapshot: RouteSnapshot): void {
   const distance = root.querySelector<HTMLElement>('#route-distance');
   const duration = root.querySelector<HTMLElement>('#route-duration');
   const alternatives = root.querySelector<HTMLElement>('#route-alternatives');
+  const liveDuration = root.querySelector<HTMLElement>('#route-live-duration');
+  const delay = root.querySelector<HTMLElement>('#route-delay');
+  const incidents = root.querySelector<HTMLElement>('#route-incidents');
   const primary = snapshot.routes[0];
 
   if (!metrics || !distance || !duration || !alternatives || !primary) return;
@@ -60,7 +64,20 @@ function renderRoute(root: HTMLElement, snapshot: RouteSnapshot): void {
   distance.textContent = formatDistance(primary.distanceMeters);
   duration.textContent = formatDuration(primary.durationSeconds);
   alternatives.textContent = String(Math.max(0, snapshot.routes.length - 1));
+  if (liveDuration) liveDuration.textContent = '—';
+  if (delay) delay.textContent = '—';
+  if (incidents) incidents.textContent = '—';
   metrics.hidden = false;
+}
+
+function renderTraffic(root: HTMLElement, snapshot: TrafficSnapshot): void {
+  const liveDuration = root.querySelector<HTMLElement>('#route-live-duration');
+  const delay = root.querySelector<HTMLElement>('#route-delay');
+  const incidents = root.querySelector<HTMLElement>('#route-incidents');
+
+  if (liveDuration) liveDuration.textContent = snapshot.routeClosed ? 'CLOSED' : formatDuration(snapshot.trafficDurationSeconds);
+  if (delay) delay.textContent = snapshot.delaySeconds > 0 ? `+${formatDuration(snapshot.delaySeconds)}` : '0 min';
+  if (incidents) incidents.textContent = String(snapshot.incidents.length);
 }
 
 export function mountApp(root: HTMLElement): void {
@@ -109,9 +126,12 @@ export function mountApp(root: HTMLElement): void {
         <div id="route-metrics" class="route-metrics" hidden>
           <div><span>ROAD DISTANCE</span><strong id="route-distance">—</strong></div>
           <div><span>BASE ETA</span><strong id="route-duration">—</strong></div>
+          <div><span>LIVE ETA</span><strong id="route-live-duration">—</strong></div>
+          <div><span>TRAFFIC DELAY</span><strong id="route-delay">—</strong></div>
+          <div><span>INCIDENTS</span><strong id="route-incidents">—</strong></div>
           <div><span>ALTERNATIVES</span><strong id="route-alternatives">0</strong></div>
         </div>
-        <p class="muted small">Distance and ETA are calculated on the real road network. ETA is still a baseline without live traffic; fare calculation comes later with tariff rules.</p>
+        <p class="muted small">Road distance and baseline ETA come from the real road network. Live ETA is shown only when a configured traffic proxy returns current provider data; no delay is invented locally.</p>
       </section>
 
       <section class="panel compact">
@@ -120,7 +140,7 @@ export function mountApp(root: HTMLElement): void {
       </section>
 
       <footer class="attribution">
-        Place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> · Routing development adapter: <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a> · Weather evaluation adapter: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>
+        Place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> · Routing development adapter: <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a> · Weather evaluation adapter: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Live traffic: configured licensed provider via CAB proxy
       </footer>
     </main>
   `;
@@ -132,10 +152,11 @@ export function mountApp(root: HTMLElement): void {
   const poiStatus = root.querySelector<HTMLElement>('#poi-status');
   const routeStatus = root.querySelector<HTMLElement>('#route-status');
   const weatherStatus = root.querySelector<HTMLElement>('#weather-status');
+  const trafficStatus = root.querySelector<HTMLElement>('#traffic-status');
   const missionStatus = root.querySelector<HTMLElement>('#mission-status');
   const technicalStatus = root.querySelector<HTMLElement>('#technical-status');
 
-  if (!locateButton || !hqTitle || !hqCopy || !gpsBadge || !poiStatus || !routeStatus || !weatherStatus || !missionStatus || !technicalStatus) {
+  if (!locateButton || !hqTitle || !hqCopy || !gpsBadge || !poiStatus || !routeStatus || !weatherStatus || !trafficStatus || !missionStatus || !technicalStatus) {
     throw new Error('CAB UI failed to initialize.');
   }
 
@@ -146,6 +167,7 @@ export function mountApp(root: HTMLElement): void {
     clearMission(root);
     routeStatus.textContent = 'Pending';
     weatherStatus.textContent = 'Pending';
+    trafficStatus.textContent = 'Pending';
 
     let context: WorldContext;
 
@@ -213,10 +235,35 @@ export function mountApp(root: HTMLElement): void {
         renderRoute(root, route);
         routeStatus.textContent = 'Road route live';
         missionStatus.textContent = 'Ready to drive';
-        technicalStatus.textContent = `Real road route loaded with ${route.routes.length} option${route.routes.length === 1 ? '' : 's'}. Live weather is attached to the world context; next is live traffic.`;
+
+        const primaryRoute = route.routes[0];
+        if (!primaryRoute) throw new Error('Routing provider returned no primary route.');
+
+        trafficStatus.textContent = 'Checking live…';
+        try {
+          const traffic = await loadRouteTraffic(primaryRoute);
+          context.trafficStatus = 'live';
+          renderTraffic(root, traffic);
+          const delayText = traffic.delaySeconds > 0 ? `+${formatDuration(traffic.delaySeconds)}` : 'no delay';
+          trafficStatus.textContent = traffic.routeClosed
+            ? `Route closure · ${traffic.incidents.length} incident${traffic.incidents.length === 1 ? '' : 's'}`
+            : `${delayText} · ${traffic.incidents.length} incident${traffic.incidents.length === 1 ? '' : 's'}`;
+          technicalStatus.textContent = `Real route plus live traffic loaded from ${traffic.provider}. No traffic delay is synthesized by CAB.`;
+        } catch (error) {
+          context.trafficStatus = 'degraded';
+          if (error instanceof TrafficProxyNotConfiguredError) {
+            trafficStatus.textContent = 'Proxy not configured';
+            technicalStatus.textContent = 'Real route is ready. Live traffic remains disabled until an HTTPS CAB traffic proxy is configured; provider credentials never belong in the APK.';
+          } else {
+            const message = error instanceof Error ? error.message : 'Live traffic unavailable.';
+            trafficStatus.textContent = 'Traffic unavailable';
+            technicalStatus.textContent = `Real route is ready, but live traffic is degraded: ${message}`;
+          }
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown routing error.';
         routeStatus.textContent = 'Routing unavailable';
+        trafficStatus.textContent = 'Blocked';
         missionStatus.textContent = 'Locations ready';
         technicalStatus.textContent = `Real POIs are valid, but the road route could not be loaded: ${message}`;
       }
@@ -225,6 +272,7 @@ export function mountApp(root: HTMLElement): void {
       context.poiStatus = 'degraded';
       poiStatus.textContent = 'OSM unavailable';
       routeStatus.textContent = 'Blocked';
+      trafficStatus.textContent = 'Blocked';
       missionStatus.textContent = 'Waiting for real POIs';
       technicalStatus.textContent = `GPS is live, but real POIs could not be loaded: ${message}`;
     } finally {
