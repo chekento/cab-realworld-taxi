@@ -27,6 +27,22 @@ export interface RouteSnapshot {
   routes: RouteOption[];
 }
 
+export interface WeatherSnapshot {
+  provider: string;
+  fetchedAt: number;
+  observedAt: string;
+  temperatureC: number;
+  apparentTemperatureC: number;
+  precipitationMm: number;
+  rainMm: number;
+  snowfallCm: number;
+  weatherCode: number;
+  cloudCoverPercent: number;
+  windSpeedKmh: number;
+  windGustKmh: number;
+  isDay: boolean;
+}
+
 export interface WorldContext {
   position: GeoPoint;
   localTimeIso: string;
