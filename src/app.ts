@@ -3,6 +3,7 @@ import { createRealWorldMission } from './missions/generate';
 import { getPlayerPosition } from './services/location';
 import { loadNearbyPois } from './world/poi/overpass';
 import { loadDrivingRoute } from './world/routing/osrm';
+import { loadCurrentWeather, weatherCodeLabel } from './world/weather/openMeteo';
 
 function formatCoordinate(value: number): string {
   return value.toFixed(5);
@@ -119,7 +120,7 @@ export function mountApp(root: HTMLElement): void {
       </section>
 
       <footer class="attribution">
-        Place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> · Routing development adapter: <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a>
+        Place data: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a> · Routing development adapter: <a href="https://project-osrm.org/" target="_blank" rel="noreferrer">OSRM</a> · Weather evaluation adapter: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>
       </footer>
     </main>
   `;
@@ -130,10 +131,11 @@ export function mountApp(root: HTMLElement): void {
   const gpsBadge = root.querySelector<HTMLElement>('#gps-badge');
   const poiStatus = root.querySelector<HTMLElement>('#poi-status');
   const routeStatus = root.querySelector<HTMLElement>('#route-status');
+  const weatherStatus = root.querySelector<HTMLElement>('#weather-status');
   const missionStatus = root.querySelector<HTMLElement>('#mission-status');
   const technicalStatus = root.querySelector<HTMLElement>('#technical-status');
 
-  if (!locateButton || !hqTitle || !hqCopy || !gpsBadge || !poiStatus || !routeStatus || !missionStatus || !technicalStatus) {
+  if (!locateButton || !hqTitle || !hqCopy || !gpsBadge || !poiStatus || !routeStatus || !weatherStatus || !missionStatus || !technicalStatus) {
     throw new Error('CAB UI failed to initialize.');
   }
 
@@ -143,6 +145,7 @@ export function mountApp(root: HTMLElement): void {
     technicalStatus.textContent = 'Requesting foreground GPS permission and current position…';
     clearMission(root);
     routeStatus.textContent = 'Pending';
+    weatherStatus.textContent = 'Pending';
 
     let context: WorldContext;
 
@@ -171,9 +174,22 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
+    weatherStatus.textContent = 'Loading live…';
+    const weatherPromise = loadCurrentWeather(context.position)
+      .then((weather) => {
+        context.weatherStatus = 'live';
+        weatherStatus.textContent = `${Math.round(weather.temperatureC)}°C · ${weatherCodeLabel(weather.weatherCode)} · ${Math.round(weather.windSpeedKmh)} km/h`;
+      })
+      .catch((error: unknown) => {
+        context.weatherStatus = 'degraded';
+        const message = error instanceof Error ? error.message : 'Weather unavailable.';
+        weatherStatus.textContent = 'Weather unavailable';
+        console.warn('[CAB] Live weather degraded:', message);
+      });
+
     poiStatus.textContent = 'Loading real POIs…';
     missionStatus.textContent = 'Waiting for OSM';
-    technicalStatus.textContent = 'GPS live. Querying named real-world places around the HQ from OpenStreetMap/Overpass…';
+    technicalStatus.textContent = 'GPS live. Loading real places and live weather from independent providers…';
 
     try {
       const pois = await loadNearbyPois(context.position);
@@ -197,7 +213,7 @@ export function mountApp(root: HTMLElement): void {
         renderRoute(root, route);
         routeStatus.textContent = 'Road route live';
         missionStatus.textContent = 'Ready to drive';
-        technicalStatus.textContent = `Real road route loaded with ${route.routes.length} option${route.routes.length === 1 ? '' : 's'}. Next: live weather and traffic modifiers.`;
+        technicalStatus.textContent = `Real road route loaded with ${route.routes.length} option${route.routes.length === 1 ? '' : 's'}. Live weather is attached to the world context; next is live traffic.`;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown routing error.';
         routeStatus.textContent = 'Routing unavailable';
@@ -212,6 +228,7 @@ export function mountApp(root: HTMLElement): void {
       missionStatus.textContent = 'Waiting for real POIs';
       technicalStatus.textContent = `GPS is live, but real POIs could not be loaded: ${message}`;
     } finally {
+      await weatherPromise;
       locateButton.textContent = 'Refresh real-world HQ';
       locateButton.disabled = false;
     }
