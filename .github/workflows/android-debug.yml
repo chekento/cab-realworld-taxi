@@ -43,6 +43,12 @@ jobs:
       - name: Generate native Android project
         run: npx cap add android
 
+      - name: Add and verify Android foreground location permissions
+        run: node scripts/patch-android-manifest.mjs
+
+      - name: Show manifest permission lines
+        run: grep -n "ACCESS_.*_LOCATION" android/app/src/main/AndroidManifest.xml
+
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
